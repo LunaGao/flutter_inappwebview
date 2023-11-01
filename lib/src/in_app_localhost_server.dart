@@ -13,6 +13,7 @@ class InAppLocalhostServer {
   HttpServer? _server;
   int _port = 8080;
   bool _shared = false;
+  bool _useAssets = true;
   String _directoryIndex = 'index.html';
   String _documentRoot = './';
 
@@ -33,12 +34,14 @@ class InAppLocalhostServer {
     String directoryIndex = 'index.html',
     String documentRoot = './',
     bool shared = false,
+    bool useAssets = true,
   }) {
     this._port = port;
     this._directoryIndex = directoryIndex;
     this._documentRoot =
         (documentRoot.endsWith('/')) ? documentRoot : '$documentRoot/';
     this._shared = shared;
+    this._useAssets = useAssets;
   }
 
   ///Starts the server on `http://localhost:[port]/`.
@@ -80,7 +83,11 @@ class InAppLocalhostServer {
           path = _documentRoot + path;
 
           try {
-            body = (await rootBundle.load(path)).buffer.asUint8List();
+            if (_useAssets) {
+              body = (await rootBundle.load(path)).buffer.asUint8List();
+            } else {
+              body = File(path).readAsBytesSync();
+            }
           } catch (e) {
             print(e.toString());
             request.response.close();
