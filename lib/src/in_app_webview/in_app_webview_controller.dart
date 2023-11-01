@@ -129,6 +129,11 @@ class InAppWebViewController {
         localStorage: LocalStorage(this), sessionStorage: SessionStorage(this));
   }
 
+  bool loadFromAssets = true;
+  setLoadFromAssets(bool value) {
+    this.loadFromAssets = value;
+  }
+
   Future<dynamic> handleMethod(MethodCall call) async {
     switch (call.method) {
       case "onLoadStart":
@@ -999,12 +1004,16 @@ class InAppWebViewController {
     }
 
     if (webviewUrl.isScheme("file")) {
-      var assetPathSplitted = webviewUrl.toString().split("/flutter_assets/");
-      var assetPath = assetPathSplitted[assetPathSplitted.length - 1];
-      try {
-        var bytes = await rootBundle.load(assetPath);
-        html = utf8.decode(bytes.buffer.asUint8List());
-      } catch (e) {}
+      if (loadFromAssets) {
+        var assetPathSplitted = webviewUrl.toString().split("/flutter_assets/");
+        var assetPath = assetPathSplitted[assetPathSplitted.length - 1];
+        try {
+          var bytes = await rootBundle.load(assetPath);
+          html = utf8.decode(bytes.buffer.asUint8List());
+        } catch (e) {}
+      } else {
+        html = utf8.decode(File(webviewUrl.toString()).readAsBytesSync());
+      }
     } else {
       HttpClient client = new HttpClient();
       try {
@@ -1208,7 +1217,7 @@ class InAppWebViewController {
   Future<void> loadUrl(
       {required URLRequest urlRequest,
       @Deprecated('Use `allowingReadAccessTo` instead')
-          Uri? iosAllowingReadAccessTo,
+      Uri? iosAllowingReadAccessTo,
       Uri? allowingReadAccessTo}) async {
     assert(urlRequest.url != null && urlRequest.url.toString().isNotEmpty);
     assert(iosAllowingReadAccessTo == null ||
@@ -1263,11 +1272,10 @@ class InAppWebViewController {
       String mimeType = "text/html",
       String encoding = "utf8",
       Uri? baseUrl,
-      @Deprecated('Use `historyUrl` instead')
-          Uri? androidHistoryUrl,
+      @Deprecated('Use `historyUrl` instead') Uri? androidHistoryUrl,
       Uri? historyUrl,
       @Deprecated('Use `allowingReadAccessTo` instead')
-          Uri? iosAllowingReadAccessTo,
+      Uri? iosAllowingReadAccessTo,
       Uri? allowingReadAccessTo}) async {
     assert(iosAllowingReadAccessTo == null ||
         iosAllowingReadAccessTo.isScheme("file"));
@@ -1507,7 +1515,13 @@ class InAppWebViewController {
   ///- iOS
   Future<dynamic> injectJavascriptFileFromAsset(
       {required String assetFilePath}) async {
-    String source = await rootBundle.loadString(assetFilePath);
+    String source = '';
+    if (loadFromAssets) {
+      source = await rootBundle.loadString(assetFilePath);
+    } else {
+      source = File(assetFilePath).readAsStringSync();
+    }
+
     return await evaluateJavascript(source: source);
   }
 
@@ -1561,7 +1575,12 @@ class InAppWebViewController {
   ///- Android native WebView
   ///- iOS
   Future<void> injectCSSFileFromAsset({required String assetFilePath}) async {
-    String source = await rootBundle.loadString(assetFilePath);
+    String source = '';
+    if (loadFromAssets) {
+      source = await rootBundle.loadString(assetFilePath);
+    } else {
+      source = File(assetFilePath).readAsStringSync();
+    }
     await injectCSSCode(source: source);
   }
 
